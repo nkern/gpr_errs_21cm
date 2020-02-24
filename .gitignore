@@ -1,1 +1,5 @@
 21cmFAST/*
+data/*.h5
+notebooks/__pycache__/*
+notebooks/.ipynb_checkpoints/*
+
