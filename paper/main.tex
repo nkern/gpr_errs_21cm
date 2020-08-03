@@ -78,6 +78,8 @@
 \def\q{\boldsymbol{q}}
 \def\p{\boldsymbol{p}}
 \def\Q{\boldsymbol{Q}}
+\def\w{\boldsymbol{w}}
+\def\m{\boldsymbol{m}}
 \def\M{\boldsymbol{M}}
 \def\C{\boldsymbol{C}}
 \def\W{\boldsymbol{W}}
@@ -90,9 +92,11 @@
 \def\I{\boldsymbol{I}}
 \def\Cov{{\rm Cov}}
 \def\Exp{{\rm E}}
+\def\bSigma{\boldsymbol{\Sigma}}
 \def\bnu{\boldsymbol{\nu}}
 \def\btheta{\boldsymbol{\theta}}
 \def\K{\boldsymbol{K}}
+\def\bk{\boldsymbol{k}}
 \def\Kto{K_{\rm 21}}
 \def\Kfg{K_{\rm fg}}
 \def\Kn{K_{\rm n}}
@@ -145,7 +149,7 @@ $^{2}$Department of Physics and McGill Space Institute, McGill University, 3600 
 % Abstract of the paper
 \begin{abstract}
 One of the key challenges in enabling the science potential of 21\,cm intensity mapping experiments is the separation of bright astrophysical foreground contamination from the underlying cosmological signal.
-Surmounting this challenge will unlock major sensitivity boosts for future 21\,cm experiments targeting the 21\,cm signal in both the pre and post reionization epoch, and will also enable for the cross-correlation of the 21\,cm signal with other probes of large scale structure.
+Surmounting this challenge will unlock major sensitivity boosts for future 21\,cm experiments targeting both the pre and post reionization epoch, and will also enable for the cross-correlation of the 21\,cm signal with other probes of large scale structure.
 Foreground signal separation is generally most challenging at low spatial Fourier $k$ modes, where foreground contamination is the strongest.
 Recent works have claimed that a Bayesian approach to data modeling using Gaussian process regression (GPR) can robustly perform this separation and may enable a 21\,cm detection at these low $k$ modes.
 We investigate these claims by casting GPR foreground subtraction into the quadratic estimator formalism, thereby putting its statistical properties on stronger theoretical footing.
@@ -168,17 +172,13 @@ keyword1 -- keyword2 -- keyword3
 \section{Introduction}
 \label{sec:intro}
 
-This is the introduction.
+Foreground separation for 21\,cm cosmology has the potential to significantly increase the sensitivity of current and future cosmological datasets.
+Many methods have been developed for doing this, some show more promise than others.
+Recently, Gaussian process based data modeling approaches have been proposed as a promising technique, and have become more widely used in real analysis pipelines.
+In this work, we put Gaussian process based foreground subtraction on stronger theoretical footing by propagating its statistical properties into the quadratic estimator formalism, thus allowing us to derive the power spectrum band power covariances and window functions of this method for the first time.
 
+Novel components of this work are...
 
-\citet{Mertens2018}
-\citetalias{Mertens2018}
-
-
-This work is in a sense an attempt to independently re-produce the results of \citetalias{Mertens2018}, but also to understand the sensitivity of GP modeling when relaxing some of their assumptions.
-What sets this work apart is our investigation of the impact of the GP hyperparameter priors in low SNR regimes; the impact of imperfect data covariances, which is almost guaranteed to be the case in real data applications; how real-world instrumental contaminants impact the technique's performance; and signal loss tests using 21\,cm templates that are not drawn from the adopted GP covariance.
-
-Other methods for foreground modeling, \citet{Chapman2012}, and other methods that estimate foreground simultaneously with the EoR signal, \citet{Zhang2016}, \citet{Sims2018}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%% Formalism %%%%%%%%%%%%%%%%%%%
@@ -335,7 +335,7 @@ The 21\,cm signal is expected to be much more spectrally variant and is not well
 Instead, similar to \citetalias{Mertens2018}, we use an exponential function,
 \begin{align}
 \label{label:eor_kernel}
-\Kfg(\nu, \nu^\prime) = \sigmato^2\exp\left(-\frac{|\nu-\nu^\prime|}{\ellto}\right),
+\Kto(\nu, \nu^\prime) = \sigmato^2\exp\left(-\frac{|\nu-\nu^\prime|}{\ellto}\right),
 \end{align}
 which has far less covariance between largely separated frequencies, and therefore models quick spectral features better.
 An exponential distribution seems to match some of the signal covariances derived from large scale simulations of $\delta T_{21}$ decently well;
@@ -371,13 +371,6 @@ where recall $K$ is the full covariance function of our data \citep{Rasmussen200
 The posterior distribution on our hyperparameters is then proportional to the log marginal likelihood plus the log prior: $\log p(\d|\bnu,\btheta) + \log p(\btheta)$.
 We use a Markov Chain Monte Carlo (MCMC) algorithm to explore the joint hyperparameter posterior distribution and determine the maximum a posteriori (MAP) vector $\hat{\btheta}$.
 This uses the affine-invariant sampler of \citet{Goodman} found in the \texttt{emcee}\footnote{emcee} package \citep{Foreman-Mackey}.
-
-\begin{figure*}
-\centering
-\includegraphics[scale=0.8]{imgs/data_covariance.png}
-\caption{}
-\label{fig:data_covariance}
-\end{figure*}
 
 \section{GPR Foreground Subtraction in the Quadratic Estimator Framework}
 \label{sec:gprfs}
@@ -419,13 +412,13 @@ In this work we adopt a $\Lambda$CDM cosmology with parameters derived from the 
 To be more statistically rigorous, we can cast the delay spectrum technique into the quadratic estimator framework \citep{Hamilton1997, Tegmark1997, Liu2014a}.
 We start by approximating the continuous power spectrum as a piecewise function in sufficiently narrow bins in $k$.
 The $\alpha$ bin's amplitude, $p_\alpha$, is referred to as its band power, and its reconstruction from the data is the ultimate goal of our estimator.
-Fundamentally, we assume that the covariance of the data (in frequency space) can be related to the band powers as
+Fundamentally, we assume that the covariance of the data in frequency space can be related to the band powers as
 \begin{align}
 \label{eq:bandpowers}
 \C = \N + \Cfg + \sum_\alpha p_\alpha \C_{,\alpha},
 \end{align}
-where $\N$ is our noise covariance, $\Cfg$ is our foreground covariance, $p_\alpha$ is our EoR power spectrum band powers, and $\C_{,\alpha} = \partial\C/\partial p_\alpha$ is the derivative of the covariance matrix with respect to the band powers.
-A quadratic estimate of the band powers can be estimated from our data vectors as
+where $\N$ is our noise covariance, $\Cfg$ is our foreground covariance, $p_\alpha$ is our EoR power spectrum band powers, and $\C_{,\alpha} = \partial\C/\partial p_\alpha$ is the derivative of the covariance matrix with respect to the band powers (the response matrix).
+A quadratic estimate of the band powers can be formed from our data vectors as
 \begin{align}
 \label{eq:qe}
 \hat{p}_\alpha = \d^\dagger\E_\alpha\d - b_\alpha,
@@ -434,7 +427,7 @@ where recall $\d$ is our data vector, $\hat{p}_\alpha$ is our estimate of the $\
 Taking the expectation value of \autoref{eq:qe} and substituting in \autoref{eq:bandpowers}, we find that 
 \begin{align}
 \label{eq:window_funcs}
-\hat{p}_\alpha = \sum_\beta\tr[\C_{,\beta}\E_\alpha]p_{\beta} + \tr[(\N + \Cfg)\E_\alpha] - b_\alpha.
+\langle\hat{p}_\alpha\rangle = \sum_\beta\tr[\C_{,\beta}\E_\alpha]p_{\beta} + \tr[(\N + \Cfg)\E_\alpha] - b_\alpha.
 \end{align}
 \autoref{eq:window_funcs} tells us that for our estimator to be unbiased we set $b_\alpha = \tr[(\N+\Cfg)\E_\alpha]$.
 Furthermore, it shows us that the estimated band powers $\hat{p}_\alpha$ are a linear combination of the true band powers $p_\alpha$ dictated by a transfer matrix, which we will denote as $\W$, commonly known as the \emph{window function}: $\hat{\p} = \W\p$.
@@ -443,7 +436,17 @@ The covariance of our band powers subject to the covariance of our input data ca
 \label{eq:qe_C}
 \Sigma_{\alpha\beta} = \langle \hat{p}_\alpha\hat{p}_\beta\rangle - \langle \hat{p}_\alpha\rangle\langle \hat{p}_\beta\rangle = 2\tr[\C\E_\alpha\C\E_\beta].
 \end{align}
+Note that the covariance of the band powers, $\bSigma$, is defined in the Fourier domain, whereas the covariance of the data, $\C$, is defined in the frequency domain.
 The band powers, their window functions, and their covariance matrix completes our full statistical distribution of the EoR power spectrum \citep{Liu2014a}.
+
+\begin{figure*}
+\centering
+\includegraphics[scale=0.8]{imgs/data_covariance.png}
+\caption{The covariance of the foregrounds, EoR, and noise components of our analytic data simulations.
+Parameters for the foreground covariance ($\sigmafg^2=10^2\ {\rm Jy}^2$, $\ellfg=4$ MHz) are selected to be roughly characteristic of HERA data.
+The EoR covariance parameters ($\sigmato^2=10^{-5}\ {\rm Jy}^2$, $\ellfg=0.75$ MHz) are selected to be roughly in line with fiducial theoretical expectations \citep{Mertens2018}, and the noise is artificially selected depending on the amount of integration assumed for the data.}
+\label{fig:data_covariance}
+\end{figure*}
 
 How do we actually compute these quantities?
 The $\E_\alpha$ matrix can be decomposed as
@@ -453,19 +456,24 @@ The $\E_\alpha$ matrix can be decomposed as
 \end{align}
 where $\M$ is a normalization matrix that ensures the estimated band powers are properly normalized, and $\R$ is an arbitrary data-weighting matrix, both of which the data analyst is free to choose subject only to the constraint that our band powers are properly normalized, or that $\sum_\beta\W_{\alpha\beta}=1$.
 Here we also see the main role of $\C_{,\alpha}$ as a Fourier transform operator for the weighted data vectors on either side of it.
-Given a choice of $\R$, we can compute the band power response matrix, defined as
+Given a choice of $\C_{,\alpha}$ and $\R$, we can form the quantity
 \begin{align}
-\label{eq:qe_response}
+\label{eq:H_mat}
 H_{\alpha\beta} = \frac{1}{2}\tr[\R^\dagger\C_{,\alpha}\R\C_{,\beta}],
 \end{align}
-which conveniently lets us re-express the window functions as $\W = \M \H$.
+which conveniently lets us re-express the window functions as
+\begin{align}
+\label{eq:window_func}
+\W = \M \H.
+\end{align}
 
-The most commonly adopted $\R$ matrix is $\R = \C^{-1}$, or the inverse data covariance matrix.
-Given this weighting matrix and assuming a diagonal normalization matrix of $M_{\alpha\beta} = \delta^k_{\alpha\beta}\left(F_{\alpha\beta}\right)^{-1}$ where $\delta^k$ is the Kronecker delta, it can be shown that we recover the optimal, minimum variance estimator with the response matrix equal to the band power Fisher matrix, $\H = \F$, and the band power covariance equal to its inverse, $\boldsymbol{\Sigma} = \F^{-1}$ \citep{Hamilton1997a, Tegmark1997, Bond2000}.
-Alternative choices of the normalization matrix lead to other desirable properties, such as $\M=\H^{-1}$ leading to window functions that are uncorrelated, and $\M=\H^{-1/2}$ leading to band power covariances that are uncorrelated.
-While $\M=\H^{-1}$ normalization results in uncorrelated band powers, it does so at the expense of larger errorbars.
-In this work, we therefore only use the minimum variance normalization (referred to as $\M\propto\I$) and the uncorrelated error normalization (referred to as $\M=\H^{-1/2}$).
-In this work, regardless of the chosen normalization matrix, we refer to the optimal quadratic estimator as one that adopts $\R_{\rm OQE} = \C^{-1}$, which is also the ``inverse variance weighted foreground removal estimator'' described in \citet{Liu2011}.
+The commonly adopted $\R$ matrix in the literature is $\R = \C^{-1}$, or the inverse data covariance matrix.
+Given this weighting matrix and assuming a diagonal normalization matrix of $M_{\alpha\beta} = \delta^k_{\alpha\beta}\left(F_{\alpha\beta}\right)^{-1}$ where $\delta^k$ is the Kronecker delta, it can be shown that we recover the optimal, minimum variance estimator \citep{Tegmark1997}.
+In such a limit, we get that $\H = \F$ and $\boldsymbol{\Sigma} = \F^{-1}$, where $\F$ is the band power Fisher matrix \citep{Hamilton1997a, Tegmark1997, Bond2000}.
+Alternative choices of the normalization matrix lead to other desirable properties, such as $\M=\H^{-1}$ leading to window functions that are diagonal in $k$ space, and $\M=\H^{-1/2}$ leading to a band power covariance that is uncorrelated between $k$ modes \citep{Tegmark2002}.
+While $\M=\H^{-1}$ deconvolves the window function, it does so at the expense of larger errorbars.
+We therefore only use the minimum variance normalization (referred to as $\M\propto\I$) and the uncorrelated covariance normalization (referred to as $\M=\H^{-1/2}$) in this work.
+Regardless of the chosen normalization matrix, we refer to the optimal quadratic estimator as one that adopts $\R_{\rm OQE} = \C^{-1}$, which is also the ``inverse variance weighted foreground removal estimator'' described in \citet{Liu2011}.
 
 To cast Gaussian process foreground subtraction into the quadratic estimator framework, we recognize that \autoref{eq:res} is simply a linear operation on the data vector, and can be equivalently expressed as
 \begin{align}
@@ -502,55 +510,110 @@ This is an interesting and non-intuitive result that helps us understand the pro
 First, we see that the inverse covariance foreground separation method of \citet{Liu2011}--the OQE of the 21\,cm signal in the presence of foregrounds--can in fact be re-cast as a Gaussian Process, with \autoref{eq:fg_conditional} yielding its constrained foreground estimate.
 Second, we see that the window function and band power covariance matrices for the GPR foreground subtraction technique can be easily derived, and are in fact similar to those for the optimal estimator.
 
-Lastly, we note that GPR foreground subtraction need not only apply to foregrounds.
-By simply substituting $\Kfg$ with the sum of any number of covariances describing terms in the data that we would like to subtract, we can construct a GPR-based signal separation estimator that is functionally equivalent to what the optimal quadratic estimator would achieve.
-
 \begin{figure*}
 \centering
-\includegraphics[scale=0.6]{imgs/gpr_window_low_noise_M_F12}
-\includegraphics[scale=0.6]{imgs/gpr_window_low_noise_M_I}
-\caption{Mock GPR foreground separation for two different EoR models ($\ellto$ = 0.25 \& 0.75 MHz) and two different normalization schemes, $M=F^{-1/2}$ (left) and $M\propto I$ (right), in a \emph{low noise scenario} where we get a nominal 10$\sigma$ detection at $k\sim0.2\ h\ {\rm Mpc}^{-1}$.
+\includegraphics[width=\linewidth]{imgs/gpr_window_low_noise_ell075.pdf}
+\caption{Mock GPR foreground separation for two different EoR models ($\ellto$ = 0.25 \& 0.75 MHz) and two different normalization schemes, $M\propto I$ (left) and $M=F^{-1/2}$ (right), in a \emph{low noise scenario} where we get a nominal 10$\sigma$ detection at $k\sim0.2\ h\ {\rm Mpc}^{-1}$.
 We show the full data consisting of foregrounds, EoR, and noise (blue dashed), the integrated noise floor of the data (black dashed), the intrinsic EoR component (green solid), and the GPR-FS quadratic estimates (purple dots) after 1000 (independent) incohorent averages.
 The error bars on the band powers are their 1$\sigma$ uncertainty ($\sqrt{\Sigma_{\alpha\alpha}}$).
 For both EoR models and under both normalization schemes, GPR-FS returns unbiased band power estimates at large $k$ modes.
 However, we see that without band power decorrelation (i.e. in the $\M\propto\I$ regime), GPR-FS fails to return statistically independent estimates of the band powers for $k<0.1\ h\ {\rm Mpc}^{-1}$, evidenced by the lack of power in the window functions (lower right).
-Although the decorrelated band power window functions demonstrate they can make largely statistically independent measurements at these low $k$ modes, their associated uncertainty is dramatically inflated.
-TODO: fix P(k) units.
-}
+Although the decorrelated band power window functions demonstrate they can make largely statistically independent measurements at these low $k$ modes, their associated uncertainty is dramatically inflated.}
 \label{fig:gpr_window_low_noise}
 \end{figure*}
 
+Lastly, we note that GPR foreground subtraction need not only apply to foregrounds.
+By simply substituting $\Kfg$ with the sum of any number of (uncorrelated) covariances describing terms in the data that we would like to subtract, we can construct a GPR-based signal separation estimator that is functionally equivalent to what the optimal quadratic estimator would achieve.
+
 \begin{figure*}
 \centering
-\includegraphics[scale=0.6]{imgs/gpr_window_med_noise_M_F12}
-\includegraphics[scale=0.6]{imgs/gpr_window_med_noise_M_I}
+\includegraphics[width=\linewidth]{imgs/gpr_window_med_noise_ell075.pdf}
 \caption{The same as \autoref{fig:gpr_window_low_noise} but in a \emph{moderate noise scenario}, where the averaged noise floor roughly meets the EoR signal at $k\sim0.2\ h\ {\rm Mpc}^{-1}$.
-In this scenario the window functions are slightly better behaved; however, we still see that GPR-FS with $\M\propto\I$ normalization is unable to probe the very low $k$ modes of the power spectrum.}
+In this scenario the window functions are slightly better behaved; however, we still see that GPR-FS with $\M\propto\I$ normalization is unable to probe the very low $k$ modes of the power spectrum (left panel).
+While $\M=\H^{-1/2}$ normalization suffers from larger errorbars at low $k$ (right panel), it is able to actually probe these $k$ modes after partially deconvolving the window function.}
 \label{fig:gpr_window_med_noise}
 \end{figure*}
 
 \subsection{Mapping the Window Functions}
 \label{sec:gpr_windows}
 
-One of the blessings of incorporating GPR modeling into the quadratic estimator formalism is the ability to compute the band power window functions.
-The window functions tell us how the intrinsic band powers map into our measured band powers.
-In a sense, they represent the true $k$ mode that our band powers are centered on and the width of the band power bin (i.e. the horizontal error bar): the $k$ bin our band powers are actually sensitive to may not be the naive $k$ bin we would expect from a simple Fourier transform.
+One of the blessings of incorporating GPR modeling into the quadratic estimator formalism is the ability to propagate its effect on the band power covariance and window function matrices.
+Recall that the window functions tell us how the intrinsic band powers map into our measured band powers.
+In a sense, they represent the true $k$ modes that our measured band powers are sensitive to and the width of the band power bin (i.e. the horizontal error bar).
+
+Although in this section our data model extends only to a single baseline (and thus a single $\kperp$ mode), we can still spherically average the band powers from a $\bk$ vector space onto a $|\bk|$ space: in other words averaging Fourier modes of equal magnitude but opposite sign.
+Assuming the mapping between the band powers of the true spherical power spectrum to the discretized band powers of the estimated cylindrical power spectrum can be described by a design matrix and an error term,
+\begin{align}
+\hat{\p}_{\rm cyl} = \A\p_{\rm sph} + \boldsymbol{\epsilon},
+\end{align}
+then the optimal compression of the cylindrical band powers onto a spherical basis \citep{Dillon2014} is given as
+\begin{align}
+\hat{\p}_{\rm sph} = \left[\A^T\bSigma_{\rm cyl}^{-1}\A\right]^{-1}\A^T\bSigma_{\rm cyl}^{-1}\hat{\p}_{\rm cyl},
+\end{align}
+with a covariance matrix
+\begin{align}
+\bSigma_{\rm sph} = \left[\A^T\bSigma_{\rm cyl}\A\right]^{-1}
+\end{align}
+and a window function matrix
+\begin{align}
+\label{eq:sph_window}
+\W_{\rm sph} = \left[\A^T\bSigma_{\rm cyl}^{-1}\A\right]^{-1}\A^T\bSigma_{\rm cyl}^{-1}\W_{\rm cyl}\A.
+\end{align}
+For each estimated band power, $\hat{p}_\alpha$, its vertical error bar is given as $\sqrt{\Sigma_{\alpha\alpha}}$, even though there may be non-zero off-diagonal components for the $\alpha$ band power.
+If we regard the window function as a probability distribution, we can estimate the central Fourier bin of the band power, $\hat{k}_\alpha$, as the window function's 50th percentile.
+The difference between this estimate, $\hat{k}$, and the $k$ mode we would have naively measured with a simple ``Fourier transform and square'' estimator is one of the key takeaways from this section.
+Furthermore, the horizontal errorbars of the band power can be estimated as the window function's 16th and 84th percentile, or its 68\% confidence interval in the Gaussian limit.
+
 To demonstrate an idealized case of GPR-FS and to map its window functions, we generate mock visibility data from the foreground, EoR, and noise covariances described in \autoref{sec:gpr}.
-Again, we assume that we know the true covariance of the data a priori (which will be relaxed later).
 \autoref{fig:data_covariance} shows the covariances of our three data terms.
-We simulate a single visibility waterfall from 120 -- 140 MHz with 64 frequency channels by drawing from a mean--zero complex Gaussian distribution with the above covariances and sum the three terms together.
-We repeat this 1000 times (independently for each time) and stack them to construct a data vector $\d$ of shape $(N_{\rm freqs}, N_{\rm times}) = (64, 1000)$.
+Again, we assume that we know the true covariance of the data a priori (relaxation of this assumption is deferred to future work).
+We simulate the visibility for a single baseline spanning 20 MHz of bandwidth in 64 frequency channels by drawing from a mean--zero complex Gaussian distribution with the covariances described above for each of the foreground, EoR, and noise terms, before summing them together to form our data vector $d$.
+For power spectrum estimation, we form two quantities, $\d_1 = \f + \e + \n_1$ and $\d_2 = \f + \e + \n_2$, which have the \emph{same} foreground and EoR realization but independent noise realizations.
+These terms enter the left-hand and right-hand side of \autoref{eq:qe} such that our final power spectra are free of the noise-bias component of $b_\alpha$, a common analysis technique performed on real data.
+We repeat this 1000 times (drawing an independent realization of all terms each time) and stack them to construct a data vector $\d$ of shape $(N_{\rm freqs}, N_{\rm realizations}) = (64, 1000)$.
+Because this uses the same covariance for each draw, one can think of this as drawing over a combination of different baseline orientations (of similar length) and patches of the sky, which will help average down sample variance of the signal terms in the estimated power spectrum.
+Technically, we anchor this bandwidth at 150 MHz (for a 140 -- 160 MHz spectral window), but this is effectively inconsequential to this work, as the covariances are fixed:
+the only impact this has is on the overall cosmological normalization (i.e. the prefactors in \autoref{eq:dspec}).
+
+We simulate two scenarios that may be relevant over the next few years for 21\,cm experiments: one where the EoR signal is detected at high significance with a signal-to-noise ratio (SNR) > 10 (low-noise scenario) and another where the EoR is marginally detected with SNR = 1 (moderate noise scenario).
+The low-noise scenario is shown in \autoref{fig:gpr_window_low_noise}, where the two panels show the measured power spectra with $\M\propto\I$ normalization (left) and $\M=\H^{-1/2}$ normalization (right). The intrinsic EoR signal is overlaid (green), as well as the thermal noise floor after averaging.
 
 
-We can also show this result holds numerically.
-To do this we construct a toy model simulation (not the sky model based simulations discussed in other parts of this work) that is simply a series of random draww from a known covariance.
-We adopt the same foreground, noise and EoR covariances described in \autoref{sec:gpr} with their kernel hyperparameters set as $\{\sigmafg^2, \ellfg, \sigmato^2, \ellto, \sigman^2\} = \{ {\rm Jy}^2, {\rm MHz}, {\rm Jy}^2, {\rm MHz}, {\rm Jy}^2\}$.
-First, we draw randomly from these covariances independently and sum their results, and then repeat this 1000 times to make an ensemble of toy model simulations.
-For each simulation we form four products: 1) the inverse covariance weighted quadratic estimate with $\R=[\Cfg + \Cn]^{-1}$, 2) the GP foreground subtracted quadratic estimate with $\R=\I - \Cfg[\Cfg + \Cn]^{-1}$, 3) the uniformly weighted quadratic estimate with $\R = \I$, and 4) the uniformly weighted quadratic estimate of only the EoR component of the data.
-In we show the power spectra and their associated uncertainties (errorbars are $\sqrt{\Sigma_{\alpha\alpha}}$).
-The points in the left and right panels show the Gaussian Process subtracted quadratic estimate and inverse covariance weighted quadratic estimate, respectively, while the green line shows the uniformly weighted simulation (showing the intrinsic amplitude of the un-subtracted foregrounds at low $\kpara$) and the red line shows the uniformly weighted EoR component (showing the true EoR bandpowers).
-In both cases, we see that foreground subtraction is able to remove the bright foregrounds at low $|\kpara|$ down to EoR amplitudes.
-While the foreground-subtracted bandpowers show deviation from the true EoR bandpowers at low $|\kpara|$ (comparing the red line to points), the uncertainties on the estimated bandpowers is also boosted at these modes, such that the uncertainties on the estimated bandpowers encompass the true bandpowers.
+\begin{figure}
+\centering
+\includegraphics[scale=0.6]{imgs/wideband_gpr_Q}
+\caption{A schematic of the wideband GPR response matrix $\C_{,\alpha}^{\rm wide}$, which has as a subset of its entires the same response matrix $\C_{,\alpha}$ as before.
+Although $\C^{\rm wide}_{,\alpha}$ is dotted into the full wideband data vector after GPR foreground removal, it only estimates band powers over the same narrower bandwidth used previously.}
+\label{fig:wideband_gpr_Q}
+\end{figure}
+
+\begin{figure}
+\centering
+\includegraphics[scale=0.6]{imgs/wideband_gprfs}
+\caption{GPR-FS applied to a 140 -- 160 MHz bandwidth (left) and wideband GPR-FS applied to a 120 -- 180 MHz bandwidth but with a power spectrum spectral window of 140 -- 160 MHz (right).
+Both power spectra are normalized with $\M=\H^{-1/2}$.
+As before, we show the full dataset (blue dashed), the EoR component (green) and thermal noise floor (black dashed).
+With wideband GPR-FS, we can probe the power spectrum down to lower $k$ with less uncertainty.
+However, with this data model, measuring the band powers for $k < 0.1\ h\ {\rm Mpc}^{-1}$ is still challenging.}
+\label{fig:wideband_gprfs}
+\end{figure}
+
+
+\subsection{Wideband GPR-FS}
+\label{sec:wideband_gpr}
+
+In this section we propose a method for modeling and removing foregrounds across a wide frequency bandwidth (thus achieving finer delay resolution in Fourier space), while simultaneously taking narrow-band power spectra.
+The advantage to this, as opposed to modeling the foregrounds over the same narrower bandwidth used for estimating the power spectrum, is the improved behavior of the resultant window functions, driven by the finer delay resolution achievable when modeling across a wider bandwidth \citep{Parsons2014}.
+This comes at the cost of increased computational complexity (recall GP's naively scale as $N^3$) as well as an increased data model complexity.
+Previous works applying GPR foreground subtraction have made simplifying assumptions driven in part by the adoption of a narrow bandwidth--namely that the foreground and noise covariance amplitude is constant over the band.
+Over wide bandwidths, this assumptions breaks down, as both the foreground and noise variance increase significantly with decreasing frequency: in practice, an amplitude power law model would need to be added to the foreground and noise covariances.
+In this section we do not actually do this, as this is merely a proposal for how one can setup a wideband GPR-FS matrix, and is meant to demonstrate the improved performance over a narrowband GPR-FS (a similar test for a visibility filtering matrix is done in \citet{Ewall-Wice2020}).
+
+
+%A wideband GPR-FS is simply a larger, rectangular $\R$ matrix of shape $N_{\rm spw\ freqs}\times N_{\rm freqs}$, where $N_{\rm spw\ freqs}$ is the number of frequency channels in the narrowband spectral window used for power spectrum analysis, and $N_{\rm freqs}$ is the number of frequencies across the wider bandwidth used for GPR modeling.
+To demonstrate this, we use the same analytic covariances from before, but inflate them to a size of $196\times196$ frequency channels spanning 120 -- 180 MHz (tripling the bandwidth).
+We also construct a larger $196196$ GPR-FS matrix to perform the wideband foreground subtraction.
+The key to retaining the same narrow bandwidth for power spectrum estimation comes from a new $\C_{,\alpha}^{\rm wide}$ matrix, which is zero for all entries except for a block along the diagonal located at the desired spectral window for power spectrum estimation, which is populated with the same $\C_{,\alpha}$ from before (\autoref{fig:wideband_gpr_Q}).
 
 
 
@@ -561,23 +624,6 @@ While the foreground-subtracted bandpowers show deviation from the true EoR band
 \label{fig:gpr_low_noise_inpainting}
 \end{figure}
 
-
-\subsection{Wideband GPR-FS}
-\label{sec:wideband_gpr}
-
-In this section we propose a method for modeling and removing foregrounds across a wide frequency bandwidth (thus achieving finer delay resolution in Fourier space), while simultaneously taking narrow-band power spectra.
-The advantage to this, as opposed to modeling the foregrounds over the same narrower spectral window used for estimating the power spectrum, is the improved behavior of the resultant window functions, driven by the finer delay resolution achievable when modeling across a wider bandwidth \citep{Parsons2014}.
-This comes at the cost of increased computational complexity (recall GP's naively scale as $N^3$) as well as an increased data model complexity.
-Previous works applying GPR foreground subtraction have made simplifying assumptions driven in part by the adoption of a narrow bandwidth--namely that the foreground and noise covariance amplitude is constant over the band.
-Over wide bandwidths, this assumptions breaks down, as both the foreground and noise variance increase significantly with decreasing frequency: in practice, an amplitude power law model would need to be added to the foreground and noise covariances.
-In this section we do not actually do this, as this is merely a proposal for how one can setup a wideband GPR-FS matrix, and is meant to demonstrate the improved performance over a narrowband GPR-FS.
-
-A wideband GPR-FS is simply a larger, rectangular $\R$ matrix of shape $N_{\rm spw\ freqs}\times N_{\rm freqs}$, where $N_{\rm spw\ freqs}$ is the number of frequency channels in the narrowband spectral window used for power spectrum analysis, and $N_{\rm freqs}$ is the number of frequencies across the wider bandwidth used for GPR modeling.
-To demonstrate this, we use the same 
-
-
-
-
 \subsection{Inpainting Missing Data}
 \label{sec:inpainting}
 Often when working with real instruments we must excise or flag data due to poor quality.
@@ -585,7 +631,8 @@ This can motivated by detector or instrument failures or by contamination of cer
 Intensity mapped power spectra are particularly sensitive to missing data along the frequency axis, as a Fourier transform of discontinuous features will cause ringing of bright Fourier modes (such as foregrounds) to other modes thus contaminating them.
 Solutions to this problem have been to remove as much of the foregrounds as possible in the frequency domain (see \citet{Ewall-Wice2020} for an example of this), or to deconvolve the effect of missing data in Fourier space.
 Nevertheless, for realistic foreground subtraction techniques we often find residual systematic features that are stronger than the EoR signal in certain parts of Fourier space.
-In theory band power decorrelation (e.g. setting $\M=\F^{-1}$) can help with this, but can often in practice be limited by numerical precision (\nsk{this is just my intuition having trouble doing so in practice}): inpainting can help prevent these features from contaminating other modes in the first place.
+In theory, band power decorrelation (e.g. setting $\M=\F^{-1}$) can help with this, but the impact of missing data can often lead to ill-conditioned matrices in the quadratic estimator. (\nsk{this is just my intuition having trouble doing so in practice}).
+Inpainting can help prevent these features from contaminating other modes in the first place.
 In practice we are less concerned about the EoR signal ringing against itself in Fourier space, as most theoretical models predict fairly flat features in $P(k)$, but in general this is still a concern, and eliminating the ringing of the EoR signal can help to prevent unnecessary correlation between nearby band powers of high SNR detections.
 Furthermore, another reason for wanting to inpaint the data is because we often want to make power spectra of the foreground component, as this is a useful metric for assessing data quality and performing jacknife and null tests.
 
@@ -631,6 +678,13 @@ The right panels shows the estimated power spectrum with and without inpainting 
 Inpainting helps us recover accurate estimates of the foreground power over spectral windows with missing data, which can be useful for data quality management and null testing of data analysis pipelines \citep{Kolopanis2019}.
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%% Discussion  %%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Discussion}
+\label{sec:discussion}
+
 \subsection{The Impact of Imperfect Covariance Models}
 \label{sec:cov_models}
 
@@ -640,434 +694,70 @@ Empirical covariance estimators have both been studied and used in 21\,cm analys
 In particular, signal loss was shown to occur when one's covariance is too finely tuned to the dataset at hand: in other words, if the covariance is overfit.
 However, another source of concern for foreground subtraction techniques is in the subtraction of the \emph{foreground bias}, $b^{\rm fg}_\alpha = \tr[\Cfg\E_\alpha]$.
 
-In this section, we focus on the impact of 
+In this section, we present a sensitivity analysis of the derived 21\,cm band powers after foreground removal on the relative accuracy of the foreground and 21\,cm covariance matrices.
+
 
 
 \subsection{Reconciling the Bias Correction of M20}
 \label{sec:bias_correction}
 
-In \citetalias{Mertens2020} Sec. 3.3.2 it is postulated that the inferred variance of the residual vector after GPR foreground subtraction is a biased estimate, and can be corrected to be unbiased by summing its variance with the variance of the GP foreground estimate (\autoref{eq:fg_cov_conditional}).
-At face value, this seems similar to a power spectrum normalization step, either in the mapping of $q$ to $p$ via the $\M$ matrix or in the subtraction of the $b_\alpha$ term in the QE formalism.
-We claim, however, that this is in fact not the same as a proper power spectrum normalization or bias subtraction, and that its statistical implication for the resultant band powers warrants further scrutiny.
+In \citetalias{Mertens2020} Sec. 3.3.2 it is postulated that the inferred variance of the residual vector after GPR foreground subtraction is a biased estimate (biased low), and can be corrected to be unbiased by summing its variance with the variance of the GP foreground estimate (\autoref{eq:fg_cov_conditional}).
+In this section, we seek to understand the statistical implications this has on the quoted band powers (particularly at low $k$ modes), and compare it to the $\M$ matrix normalization step of the quadratic estimator.
 
-To summarize \citetalias{Mertens2020}, the covariance of the residual vector can be shown to be
+First, we will define the relationship between the unnormalized band powers, $\hat{\q}$, and the normalized band powers, $\hat{\p}$, within the quadratic estimator framework.
+We can define the unnormalized band powers as
+\begin{align}
+\label{eq:unnorm_q}
+\hat{q}_\alpha = \frac{1}{2}\d^\dagger\R^\dagger\C_{,\alpha}\R\d,
+\end{align}
+such that the final normalized band powers can be succinctly expressed as
+\begin{align}
+\hat{p}_\alpha = \sum_\beta M_{\alpha\beta}\hat{q}_\beta - b_\alpha.
+\end{align}
+If we assume that our $\M$ matrix is diagonal ($\M\propto\I$), then this final equality simplifies to $\hat{p}_{\alpha} = \sum_\alpha M_{\alpha\alpha}\hat{p}_\alpha - b_\alpha$.
+Here we see the quantity $\hat{q}_\alpha$ as simply the weighted and Fourier transformed data vector, while the matrix $\M$ is a multiplicative factor that ensures the final band powers are properly normalized.
+
+
+Next, to summarize \citetalias{Mertens2020}, the covariance of the residual vector after GPR foreground removal can be shown to be
 \begin{align}
 \label{eq:res_covariance}
-\langle\r\r^\dagger\rangle = \R_{\operatorname{GPR-FS}}\langle\d\d^\dagger\rangle\R_{\operatorname{GPR-FS}}^\dagger
+\langle\r\r^\dagger\rangle &= \R_{\operatorname{GPR-FS}}\langle\d\d^\dagger\rangle\R_{\operatorname{GPR-FS}}^\dagger \nonumber \\
+&= [\Cn + \Cto] - \Cfg + \Cfg[\Cfg + \Cn + \Cto]^{-1}\Cfg \nonumber \\
+&= \C_{\rm r} - \Cov[\f],
 \end{align}
-
-
-The band power bias correction is motivated by the fact that the covariance of the foreground residual (\autoref{eq:gp_conditional}) is found to be equal to the covariance of the residual terms minus the covariance of the foreground estimate.
-This is derived under the assumption that $\langle \d \d^\dagger\rangle = \Kfg + \Kto + \Kn$, or that the ensemble average of the data is equal to the adopted covariance model.
-Note that this is a much different assumption than that found in the quadratic estimator
-
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%% Simulation %%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Simulating HERA Observations}
-\label{sec:sims}
-
-We use the \texttt{healvis}\footnote{healvis} simulation software \citep{Lanman2019} to generate realistic interferometric visibilities.
-\texttt{healvis} represents the sky, primary beam and fringe pattern (the three main components of \autoref{eq:me}) as HEALpix maps \citep{Gorski}, and approximates the sky integral with a discrete sum.
-\autoref{Lanman2019} showed that, at low frequencies ($\nu\sim150$ MHz) and for intermediate baseline lengths of $|b| < 150$ m, \texttt{healvis} converges to a stable result with a HEALpix maps with NSIDE = 256 resolution.
-In this section we discuss the various components of our simulation.
-The simulations are specific to HERA in the sense that the baseline $uvw$ coordinates are adopted from a fiducial HERA layout and in that the adopted primary beam model is an airy disk representative of HERA's 14-meter dishes; however, this is easily extensible and we could readily use this framework to produce simulations more specific to the MWA or LOFAR, for example.
-We do not expect the fundamental results of this work--in other words, the overall performance of GP modeling on simulated data--to be strongly dependent on the telescope model, as the statistics of the underlying sky signals are not significantly changed.\footnote{The one exception to this is the usage of particularly short baselines in this work, $\lambda \sim 20$, whereas similar works on LOFAR use $\lambda\sim XX$, which can have significant ramifications of the statistics of the observed 21\,cm and foreground signal in the visibilities.}
-\autoref{tab:simulation} details the various components of our data simulations.
-The angle and frequency dependence of the Airy disk primary beam is the result of a uniformly-illuminated circular aperture, written as
+where we made the key assumption that our covariance models (i.e. $\Kfg$, etc) are equal to the true covariance of the data (i.e. $\Cfg$, etc).
+This tells us that in order to unbias our covariance estimator, we should sum it with the covariance of the GPR foreground estimate.
+We can equivalently frame this in terms of the power spectrum by noting that
 \begin{align}
-A(\theta, \nu) = \frac{\nu}{c\pi D\sin\theta}J_1\left(\frac{c\pi D\sin\theta}{\nu}\right),
+\langle\r\r^\dagger\rangle\C_{,\alpha} &= [\C_{\rm r} - \Cov[\f]]\C_{,\alpha} \nonumber \\
+2\langle\hat{q}_\alpha\rangle &= \tr[\C_{\rm r}\C_{,\alpha}] - \tr[\Cov[\f]\C_{,\alpha}],
 \end{align}
-where $\theta$ is the angle in radians away from the pointing center, $D=14$ meters is the dish diameter, and $J_1$ is the first-order Bessel function of the first kind.
-\autoref{fig:ant_array} shows the HERA array layout used in our simulations.
-We simulate the 10 shortest unique baselines (including the auto-correlation), which consists of all baselines between numbered antennas paired with antenna 0.
-
-\begin{table}
-\centering
-\begin{tabular}{l l} 
-\hline
-\hline
-{\bfseries Telescope Parameters} \\
-Array layout & HERA Hexagonal \\
-Number of simulated baselines & 10 \\
-Min. baseline length & 14.6 m  \\
-Max. baseline length & 58.4 m \\
-Observation type & drift-scan \\
-Primary beam & 14-meter airy disk \\
-Frequency band & 120 -- 140 MHz \\
-Channel width & 156.25 kHz \\
-Observation LST & 1.0 hour \\
-Number of integrations & 1 \\
-
-\hline
-{\bfseries Signal Parameters} \\
-Diffuse Foreground Term & 2008 Global Sky Model \\
-Point Source Foreground Term & MWA GLEAM Catalogue \\
-EoR Term & \texttt{21cmFAST} lightcone \\
-HEALPix Map NSIDE & 256 \\
-Sky Noise Term & GSM total power with HERA $\Omega_p$ \\
-Receiver Noise Term & 100 Kelvin \\
-Contaminants & Gain errors and RFI \\
-\hline
-\hline
-\end{tabular}
-\caption{Data simulation signal terms and parameters for this work. More details in \autoref{sec:sim_app}.}
-\label{tab:simulation}
-\end{table}
-
-\begin{figure}
-\centering
-\includegraphics[scale=0.6]{imgs/ant_array}
-\caption{HERA array layout used for our simulations. We simulate the 10 shortest unique baseline types formed between all numbered antennas paired with antenna 0.}
-\label{fig:ant_array}
-\end{figure}
-
-\subsection{Foregrounds}
-Diffuse foreground emission is modeled using the Global Sky Model \citep[GSM;][]{Oliveira2008}.
-Point source model comes from the GLEAM survey.
-
-\begin{figure}
-\centering
-\includegraphics[scale=0.5]{imgs/sim_vis.png}
-\caption{Simulated data products in frequency space and in Fourier space for a 30-meter baseline. Diffuse foregrounds (upper-left, green) are smoothly varying but have spectral structure imparted by the chromaticity of the instrument. EoR (lower-left, blue) is highly spectrally variant, and thermal noise (upper-right, grey) has uncorrelated power on all scales. The thermal noise amplitude shown here is for an instantaneous 10.7 second HERA snapshot observation, but is lowered when running GPR to simuate longer integration times. The diffuse foreground component alone is roughly $10^10$ greater in power than the EoR (lower-right).}
-\label{fig:sim_vis}
-\end{figure}
-
-\subsubsection{A Note on ``Mode Mixing''}
-Foregrounds that are spectrally smooth occupy low line-of-sight (LoS) spatial Fourier modes ($k_\para$).
-Certain effects from the instrument and from the environment, however, can cause these modes to leak-out to higher $k_\para$.
-In general, anything that creates spectral structure, (e.g. unflagged RFI, primary beam variations, residual gain errors, etc), will create this leakage.
-However, another way this leakage is created is simply due to the chromaticity of the instrument, as discussed in \autoref{sec:rime}.
-This effect is not really an imperfection of the instrument because even an idealized interferometer (e.g. in the absence of imperfect calibration, ionosphere, PB variations) defined by \autoref{eq:rime} will see this effect.
-Traditionally, it is this latter effect that has been called ``mode mixing'' in the literature \citep{Datta, Morales}, not the former, non-idealized effects like RFI and PB variations.
-In this work we will stick to this convention.
-Therefore, mode mixing terms are automatically included in our foreground simulation via \autoref{eq:rime}, and do not actually need to be simulated as a post-processing step as is done in \citet{M19}.
-However, we do simulate certain non-idealized effects like calibration errors that are in practice ubiquitous in real data.
+where in the second equality we used the fact that $\tr[\langle\r\r^\dagger\rangle]\C_{,\alpha} = \langle\tr[\r^\dagger\C_{,\alpha}\r]\rangle$.
+Thus, assuming a diagonal $\M$ normalization matrix, we can form the quantity
+\begin{align}
+\langle\hat{p}_\alpha\rangle = \sum_\alpha M_{\alpha\alpha}\langle\hat{q}_\alpha\rangle
+\end{align}
 
 
-\subsection{21\,cm Signal}
-Our 21\,cm cosmological signal simulations start with $\delta T_b$ box output from the \texttt{21cmFAST} semi-numerical simulation \citep{Mesinger2011}.
-This simulation uses 1st order Lagrangian perturbation theory to evolve the dark matter density field starting from initial conditions at $z=300$ down to EoR redshifts, and then uses approximate physics to evaluate the HI ionization field using an excursion set approach and a combination of semi-analytic parameters that govern the ionizing photon production efficiency of star forming galaxies \citep{Furlanetto}.
-We further assume a saturated spin temperature that is appropriate only in the limit of a strongly heated IGM.
-For the redshifts we are concerned with ($6 < z < 10$) this is a fairly good approximation, although this begins to break down towards the high redshift end, and is also not appropriate in scenarios of late or weak IGM heating \citep{Greig, Mirocha}, which have not been ruled out by observations.
-Our use of approximate physics for the 21\,cm component is justified for this work because we are concerned only with generating a statistically plausible realization of the 21\,cm field.
-The primary concern of this work is whether we can recover that signal, regardless of how it is generated, with the techniques described.
-
-In running \texttt{21cmFAST}, we use the default parameterization, $\zeta=$, $T_{\rm vir}=$, $R_{\rm mfp}=$.
-We use a box with a side length $L=X$ Mpc with a grid resolution of X$^3$ to sample and evolve the dark matter initial conditions, which are then downsampled to X$^3$ to calculate the $\delta T_b$ field, yielding a final voxel resolution of X Mpc$^3$.
-For each observing frequency and HI emitter redshift, the $\delta T_b$ box output is then stacked in 3D real space and then sampled within a thin spherical annulus at the appropriate comoving distance to create large-scale HEALpix maps using \texttt{cosmotile}\footnote{cosmotile} package \citep{Kitisiwit}.
-These maps are then fed into the normal \texttt{healvis} simulation framework.
-
-
-
-\subsection{Contaminants}
-\label{sec:contaminants}
-
-\subsubsection{Residual Direction Independent Gain Errors}
-Even after instrumental calibration, there is likely to be residual gain errors that have temporal and spectral components.
-These will cause leakage of the foregrounds out to higher $\kpara$ modes.
-We simulate residual DI gain errors that are smoothly varying in time with a 6 hour timescale, with decaying spectral structure out to 500 ns.
-These fiducial choices are motivated by HERA calibration studies \citep{Kern2020a, Kern2020b}.
-
-
-\subsubsection{Residual Direction Dependent Gain Errors}
-
-
-\subsubsection{Cross-Coupling}
-
-
-\subsubsection{Cable Reflections}
-We do not simulate cable reflections in this work, although they are a common systematic for radio surveys and have been observed in almost all leading 21\,cm experiments.
-Instead, we assume that cable reflections have been mostly calibrated out by calibration procedures, and the residual
-
-
-\subsubsection{Radio Frequency Interference}
-
-
-residual phase and amplitude gains, RFI, crosstalk?
-
-realistic simulation and statistical simulation from the kernel (as is done in M19).
-
-
-\subsection{Noise}
-Thermal noise in the visibilities is drawn from a complex normal distribution with a standard deviation proportional to the system temperature $T_{\rm sys}$.
-For HERA Phase I, this has been shown to be roughly 300 K for $\nu\sim150$ MHz.
-
-
-\subsection{Unexplored Effects} 
-Ionosphere, polarization leakage, etc.
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%% Simulated HERA Trials %%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Mock Foreground Subtraction for HERA}
-\label{sec:hera_gprfs}
-In this section we apply GPR-FS to the simulated HERA observations discussed above.
-
-
-The seminal conclusion of \citetalias{Mertens2018} is that by developing a covariant description of each of the signal terms in the data, $\{\f, \e, \n\}$, one can model the foreground term in a way that allows for a clean subtraction of the 21\,cm signal from the other components in the data.
-In particular, they emphasize that this can even be done even in the limit that the 21\,cm signal is appreciably below the thermal noise floor (i.e. $\sigma_{N} > \sigma_{21}$), which they show by taking their residual power spectrum and subtracting the noise bias \emph{inferred from the same noise realization used in their simulations} to reveal a non-zero fluctuations that is visually consistent with their input 21\,cm power spectrum (their Figure 4).
-However, this result does not support their original claim because this kind of operation can never be realized in practice: one can never estimate the noise power to better precision than the underlying noise floor of the data.
-In other words, we are never handed the \emph{actual} noise bias found in our data, and therefore must estimate its amplitude from the data itself, which fluctuates at the level of the thermal noise.
-To answer the question we think they are trying to get at--which is if GPR modeling performed on noisy data can leave intact a weaker 21\,cm signal--one should run GPR on many independent realizations of noisy data and then coherently integrate them to reduce the noise floor.
-This is important because the former approach (removing the exact noise fluctuations used in the simulation) may hide the fact that while GP modeling may leave the \emph{variance} of the 21\,cm signal in the data, it may not leave intact its underlying mean function.
-Forcing one to coherently integrate an ensemble collection of residual vectors would reveal this failure mode, as the 21\,cm residuals would quickly de-correlate and show readily observable signal loss compared to the input simulated signal.
-
-\citetalias{Mertens2018} model the EoR term with a Matern kernel with $\nu=1/2$, and model the foreground term with the sum of an intrinsic term and a mixture term, using a Matern kernel with $\nu=5/2$ and $\nu=3/2$, respectively.
-Both the overall variance of the kernels and their length scales are left as free hyperparameters to be constrained by the data, and the choice of $\nu$ for the Matern kernels is motivated by a model selection test using the marginal likelihood (or Bayesian evidence).
-Noise is modeled as homoscedastic\footnote{in principle, noise is generally heterscedastic and various both as a function of LST and frequency, but over narrow time and frequency ranges homoscedasticity is not a bad approximation}, and is fixed at the measured noise level of the data.
-
-%While the mixture kernel is intended to account for mode mixing induced by instrument chromaticity and other contaminants, modeling it as a separate and uncorrelated term is not totally appropriate as it is simply a convolution of the intrinsic foregrounds with a chromaticity kernel, and is therefore likely to be correlated with the intrinsic sky term in the data.
-
-
-
-
-%This latter point is reinforced by the fact that, as we will see, GP modeling shows significant EoR-to-FG power leakage at low $k$ modes that must be accounted for by an overall scaling factor to even make an unbiased measurement of the EoR.
-
-In our GPR runs below, we optimize the GP kernel and evaluate \autoref{eq:fg_conditional} on each simulated baseline independently.
-This is technically different than what \citetalias{Mertens2018} did, which is to optimize the kernel for a set of baselines simultaneously for computational savings.
-However, our approach is likely to lead to more accurate results, as different baselines will have slightly different underlying data covariances \citep{Ghosh2020}.
-Furthermore, we train the GP on the real and imaginary component of the visibility simultaneously (i.e. as separate features of the same underlying data vector).
-When optimizing the kernel over its hyperparameters, we hold the noise kernel fixed at its value \emph{estimated} from the data (we do not set it to the exact pre-defined value).
-
-
-\begin{table}
-\centering
-\begin{tabular}{l c c} 
- \hline
- \hline
- Hyperparameter & Uniform Prior Bounds & Posterior Bounds \\
- \hline
- {\bfseries High SNR Regime} \\
- $\sigma_{\rm n}$ [Jy] & 1.14$\times10^{-3}$ & -- \\[.1em]
- $\sigma_{\rm fg}$ [Jy] & 0, $10^3$ & $34.2 \pm 7.0$  \\
- $\ell_{\rm fg}$ [MHz] & 2, 50 & $4.33 \pm 0.13$ \\
- $\sigma_{\rm 21}$ [Jy] & $10^{-5}$, 1 & $(2.38\pm0.12)\times10^{-3}$ \\
- $\ell_{\rm 21}$ [MHz] & $10^{-5}$, 3 & $0.10 \pm 0.02$ \\
-  \hline
-{\bfseries Low SNR Regime} \\
- $\sigma_{\rm n}$ [Jy] & 1.66$\times10^{-4}$ & -- \\
- $\sigma_{\rm fg}$ [Jy] & 0, $10^3$ & --\\
- $\ell_{\rm fg}$ [MHz] & 2, 50 & --\\
- $\sigma_{\rm 21}$ [Jy] & $10^{-5}$, 1 & --\\
- $\ell_{\rm 21}$ [MHz] & $10^{-5}$, 3 & --\\
- \hline
- \hline
-\end{tabular}
-\caption{GP hyperparameter selections for \autoref{sec:M18}. All priors (except for $\sigman$, which is fixed) are uniform.}
-\label{tab:hp_priors}
-\end{table}
-
-
-\begin{figure}
-\centering
-\includegraphics[scale=0.4]{imgs/gp_fg_fit}
-\caption{Foreground model fit (dashed-green) to the underlying visibility data (black) in the high SNR regime. The residual vector is shown (red) next to the underlying EoR signal (blue), showing a good but not perfect match.}
-\label{fig:gp_fg_fit}
-\end{figure}
-
-
-\subsection{High SNR Regime}
-\label{sec:high_snr}
 
 \begin{figure*}
 \centering
-\includegraphics[scale=0.5]{imgs/high_snr_gpr.png}
-\includegraphics[scale=0.45]{imgs/high_snr_hp_posterior.png}
-\caption{Left: Power spectra of the data (black), foreground model (dashed green), intrinsic EoR component (blue), residual (red), and statistical noise floor (dashed grey) in the high SNR regime. Right: Hyperparameter posterior distributions for a 30-meter baseline. The preference for a $\sigmato/\sigman$ > 1 shows a clear detection of the 21\,cm signal by the covariance kernel. Contours show the 68\% and 95\% confidence intervals.}
-\label{fig:high_snr}
+\includegraphics[scale=0.8]{imgs/lofar_shifted_limits}
+\caption{LOFAR upper limits on the 21\,cm power spectrum at $z=9.1$ from \citetalias{Mertens2020} assuming the central $k$ bin of each band power is i) the naive discrete Fourier transform (DFT) $k$ bins (filled markers) and ii) using the band power window function 50th percentile (open markers).
+The window functions are computed given their adopted data covariances used for GPR foreground removal.
+Because the quoted power spectra are in units of $\Delta^2 = P(k) k^3/(2\pi^2)$, adopting different $k$ bin values for the band powers can dramatically change the sensitivity of the limits.
+If the window functions computed here are similar to the true LOFAR window functions in \citetalias{Mertens2020}, they call into question the constraining power of the lowest $k$ modes in the quoted power spectrum limit.
+This is particularly important for astrophysical parameter space searches for as which are generally the most sensitive $k$ modes and for astrophysical parameter space searches \citep{Ghara2020}, will domin
+}
+\label{fig:lofar_shifted_limits}
 \end{figure*}
-
-\begin{figure*}
-\centering
-\includegraphics[scale=0.5]{imgs/low_snr_gpr.png}
-\includegraphics[scale=0.45]{imgs/low_snr_hp_posterior.png}
-\caption{Left: Power spectra of the data (black), foreground model (dashed green), intrinsic EoR component (blue), residual (red), and statistical noise floor (dashed grey) in the low SNR regime. Right: Hyperparameter posterior distributions for a 30-meter baseline. The posterior on $\sigmato$ shows a detection (i.e. it is not consistent with $\sigmato=0$), however, the strength of the detection on both $\sigmato$ and $\ellto$ is considerably weaker than in the high SNR limit. Contours show the 68\% and 95\% confidence intervals.}
-\label{fig:low_snr}
-\end{figure*}
-
-We start by assuming that our data have been integrated enough such that the per-visibility thermal noise is below the EoR signal ($\sigma_n = 0.5 \sigma_{21}$).
-This is a highly idealized assumption, and is equivalent to roughly three full years of uninterrupted integration (180 observing days per year) for one of HERA's short redundant baseline types for the full array (350 elements).
-This is a useful benchmark because it represents a best-case scenario, where thermal noise is not a major limiting factor above the EoR amplitude.
-
-We regress for the kernel hyperparameters (\autoref{tab:hp_priors}), which fall well within the bounds of the hyperparameter priors.
-\autoref{fig:gp_fg_fit} shows the MAP foreground model (dashed-green) compared to the underlying data.
-We see that the foreground model is a very good fit, with the residual vector highly comparable, but not identical, to the underlying EoR signal in the data.
-To understand the impact foreground removal has on the power spectrum, we form cross power spectra of the data, the residual, and the foreground model and plot them in \autoref{fig:high_snr}.
-Again, we see that the foreground model is a good fit to the foreground structure in the data, however, we see that within the wedge the residual is inconsistent with the EoR or even the thermal noise.
-For $k_\para < 0.2$ Mpc$^{-1}$, we find that the foreground model over-subtracted the signal and removed both intrinsic EoR and noise structure that was not supposed to be modeled by the foreground kernel.
-In other words, while the RBF kernel does an excellent job modeling the smooth foreground signal to high dynamic range, it also picks up the smooth components of the noise and EoR signal and subtracts them from of our residual vector.
-This is the first major difference in our results compared to \citetalias{Mertens2018}.
-This says that GP foreground modeling (without correction) is actually a lossy operation at low $k$ modes inside the wedge--exactly the modes that foreground removal is attempting to access.
-\citetalias{Mertens2020} address this point by framing it as a variance bias that needs correction, which we return to in \autoref{sec:pspec_bias}.
-
-Outside the wedge the residual power spectrum is consistent the original data and with the intrinsic EoR signal (deviations from the EoR and the data curves is due to noise).
-This is reassuring--our foreground subtraction should not affect modes that do not originally have foregrounds--but not surprising given how compact our foreground model is in delay space.
-\autoref{fig:high_snr} also shows the posterior distribution on the kernel hyperparameters, showing a clear detection of the 21\,cm signal in the posterior distributions on $\sigmato$ and $\ellto$.
-
-
-\subsection{Low SNR Regime}
-\label{sec:low_snr}
-
-Next we look to run GPR on visibilities with a lower SNR by a factor of 3.
-This corresponds to roughly one year of observing with the full HERA array.
-In this case the per-visibility thermal noise is above the EoR signal, but only slightly, such that incoherent averages in the power spectrum (not performed in this work but for example could be from a cylindrical $k_\perp$ vs. $k_\para$ average) would yield enough sensitivity boosts to detect the EoR in the power spectrum of a nominal dataset.
-\autoref{fig:low_snr} shows the power spectra after running GPR on the low SNR visibilities.
-The hyperparameter posterior on $\sigmato$ is still indicative that it is picking up on the underlying 21\,cm signal in that it is not consistent with zero but has a much wider posterior than in the high SNR regime, which is also true of $\ellto$.
-On the other hand, the constraint on $\sigmafg$ and $\ellfg$ are largely unconstrained, as the SNR on the foreground component is already quite large.
-Similar to the high SNR regime, we see a loss of power at low $k$ in the residual power spectrum of \autoref{fig:low_snr} indicative of signal loss in the process of foreground subtraction.
-
-\subsection{Measuring the Residual Power Spectrum}
-\label{sec:pspec_bias}
-
-\begin{figure}
-\centering
-\includegraphics[scale=0.55]{imgs/low_snr_cov_pspec}
-\caption{Power spectra estimated directly from the optimized GP covariance functions in the low SNR regime (green \& orange). Light green shows resampling from the marginalized posterior on $\Kfg$, with its MAP estimate shown in dark green. Light orange shows resampling from the marginalized posterior on $\Kto$, with its MAP estimate in dark orange. Plotted as dashed black and blue are the full data and intrinsic EoR component, respectively.}
-\label{fig:low_snr_cov_pspec}
-\end{figure}
-
-From our results in \autoref{fig:high_snr} and \autoref{fig:low_snr}, it is clear that the foreground estimate of \autoref{eq:fg_conditional} can soak up other processes in the data at low $k_\para$ Fourier modes, including both the intrinsic EoR and thermal noise signals.
-Because the model is actually fitting out these terms, one way to phrase this problem is simply in terms of model overfitting.
-For kernel regression methods like GPR, regularization of the MAP foreground vector (\autoref{eq:fg_conditional}) comes from the noise covariance matrix ($\Kn = \sigma_n^2\I$), which is functionally equivalent to Tikhonov regularization of a linear estimator \citep{Ohagan1978, Mackay1992, Rasmussen2006}.
-In a sense, the presence of $\Kto$ is also a form of regularization on $\Exp[\f^\prime]$ in the limit that $\sigmato > \sigman$.
-Therefore, the problem is not that our regressed foreground estimate is unregularized.
-
-
-This hints at the difference between sources of \emph{bias} and \emph{uncertainty} in power spectrum estimation, which can be understood in the context of a quadratic estimator.
-
-A quadratic estimator of the $\alpha$ Fourier mode of the bandpower (i.e. the discretized power spectrum) is defined as
-\begin{align}
-\hat{p}_\alpha = \x^T\E_\alpha\x.
-\end{align}
-where $\E$ is a matrix that performs the data weighting and Fourier transforming across the frequency.
-We write this matrix as
-\begin{align}
-\E_\alpha = \frac{1}{2}\sum_\beta M_{\alpha\beta}\R \Q_\beta \R.
-\end{align}
-where $\R$ is a square data weighting matrix, $\Q_\beta$ is a square matrix that takes the computes the $\beta$ Fourier mode of the data on either side of it (and can be decomposed as $\Q_\beta = \q_\beta\q_\beta^T$, where $\q_\beta$ is a $N_\nu\times1$ column vector holding the $\beta^{\rm th}$ DFT operator: $q_\beta^n = e^{2\pi i\beta n / N_{\nu}}$), and $\M$ is the normalization matrix that ensures the bandpowers are properly normalized \citep{Tegmark1997, Liu2011, Dillon2013}.
-$\M$ is defined such that the window function--the mapping of the true bandpowers to the estimated bandpowers--is normalized such that its rows sum to unity.
-
-
-Why this is not seen in \citetalias{Mertens2018} is unclear, but \citetalias{Mertens2020} identify this problem as an overall bias on the measured residual power spectrum, and claim one can correct for this by simultaneously propagating the covariance of the foreground fit, $\Cov[\f]$, into the measured power spectrum (their Eqn. 15 - 17).
-Fundamentally, they reach this conclusion by making the assumption that $\langle \d\d^T\rangle = K_{\rm fg} + K_{\rm 21} + K_{\rm n}$, which equates the observed data covariance with the GP regression model.
-This is a subtle procedure that warrants further scrutiny.
-First, it is perhaps not surprising that we can ``restore'' the power spectrum at low $k$ to reach EoR and thermal noise levels because we have by construction equated the data covariance with the covariance of our GP model.
-However, this is a precariously model-dependent statement, and has crucial implications for the statistics of the restored bandpowers.
-
-To begin, if we are going to make the claim that the 21\,cm signal is completely described by our regressed $\Kto$, we don't need to form power spectra, as we can directly estimate the implied power spectrum from $\Kto$ with the Wiener-Khinchin theorem, which says that the power spectrum is simply the Fourier transform of the covariance.
-Another reason why restoring the bandpowers to account for this kind of signal loss is perhaps counterintuitive is because it is masking a real problem with the foreground estimator, which is that it is overfitting the data and removing real EoR signal.
-Any technique branded as a foreground subtraction operator should be able to keep the EoR signal in the visibility data, not just in the squared statistic of the power spectrum.
-Said another way, if I were to run GPR foreground subtraction and image the residuals, I would not see the low $k$ EoR signal in my images--even though my propagated and bias-corrected power spectrum estimator would insist that it is there.
-
-This hints at another important distinction about the statistics of the restored bandpowers.
-As mentioned, an optimized GP model can be thought of as a rough power spectrum estimator in its own right.
-\autoref{fig:low_snr_cov_pspec} shows power spectra derived solely from the optimized GP kernels in the low SNR regime using the Wiener-Khinchin theorem.
-Light green shows draws from the hyperparameter posterior on $\Kfg$, with its MAP estimate in dark green.
-Light orange shows draws from the posterior on $\Kto$, with its MAP estimate in dark orange.
-The full data and the EoR component are plotted in black and blue, respectively.
-We see that the MAP estimate of the 21\,cm power spectrum is not a bad approximation to the intrinsic EoR component--however, its degrees of freedom as a function of $k$ are severely limited, as the degrees of freedom of the underlying covariance model are low.
-This means that the orange lines can only match the EoR component so long as its covariance structure agrees with the intrinsic EoR signal, which is difficult to know a priori, and is especially troublesome given that we have no empirical handle on the 21\,cm power spectrum.
-Furthermore, assuming that I were to create a power spectrum estimator that used the black line of \autoref{fig:low_snr_cov_pspec} for $k_\para > 0.2$ Mpc$^{-1}$ and the dark orange line for $k_\para < 0.2$ Mpc$^{-1}$ (effectively what the bandpower bias correction is doing), then I would be creating an estimator with vastly different statistical properties and degrees of freedom for bandpowers inside the wedge compared to outside the wedge, which would need careful attention when performing statistical parameter inference with EoR models.
-The statistical properties of the bandpowers of these low $k$ modes is particularly important for EoR parameter inference as they are generally the highest SNR modes and therefore contain the most constraining power.
-
-\begin{figure*}
-\centering
-\includegraphics[scale=0.5]{imgs/high_snr_gpr_yerr.png}
-\includegraphics[scale=0.5]{imgs/low_snr_gpr_yerr.png}
-\caption{}
-\label{fig:gpr_yerr}
-\end{figure*}
-
-This still leaves us with the question about how to handle the uncertainty on the GPR foreground model: how can we propagate the impact of $\Cov[\f]$ on our power spectrum measurements?
-Like any random variable in the data that is deemed a deviation about the underlying signal of interest (like noise), we can take its estimated covariance and calculate its impact on the bandpower errorbars.
-Therefore, one may think of
-Instead, we argue that is is better to think of the effect of $\Cov[f]$ as an \emph{inflation of the uncertainty on the bandpowers}, rather than an actual ``unbiasing'' of the power spectrum.
-This can be seen using the quadratic estimator formalism for measuring the power spectrum, which states that the $\alpha$ bandpower (i.e. the amplitude of the discretized power spectrum in the $\alpha^{\rm th}$ $k$ bin) can be formed via the quantity
-\begin{align}
-\label{eq:qe}
-\hat{p}_\alpha = \x^H\Q_\alpha\x,
-\end{align}
-where $\x$ is our data vector, $\Q_\alpha = \C_{,\alpha}$ is the derivative of the covariance with respect to the bandpower, and we've omitted an overall normalization factor for brevity \citep{Tegmark1997, Liu2014a}.
-With uniform data weighting (which in general is not the optimal quadratic estimate), we can think of $\Q_\alpha$ as simply a Fourier transform operator that acts on both data vectors.
-In this case, we can see that we are left with our simple delay spectrum estimator from \autoref{sec:pspec}: $\hat{p}_\alpha \propto \widetilde{V}\alpha\widetilde{V}_\alpha^\ast$.
-
-The covariance of the measured bandpowers is given by $\Sigma = \langle\hat{p}\hat{p}^\ast\rangle - \langle\hat{p}\rangle\langle\hat{p}^\ast\rangle$, which, when substituting in \autoref{eq:qe} and using Wick's theorem (see Eqn. 24 of \citet{Dillon2014}), simplifies to
-\begin{align}
-\Sigma_{\alpha\beta} = 2{\rm tr}\left[\C\Q_\alpha \C\Q_\beta\right].
-\end{align}
-We can further simplify this by noting that if $\Q$ is just a Fourier transform operator on both $\x$ vectors, it can be broken into $\Q_\alpha=\q_\alpha\q_\alpha^T$ where $\q_\alpha$ is a $n\times1$ column vector holding the discrete Fourier transform operation of the $\alpha$ bandpower.
-With this simplification, and looking at just the diagonal component of $\Sigma_{\alpha\beta}$, we find that the errorbar on the power spectrum becomes
-\begin{align}
-\sigma_{\alpha\alpha} = \Sigma_{\alpha\alpha}^{1/2} = \sqrt{2}\q_\alpha^TC\q_\alpha.
-\end{align}
-This tells us that the errorbar on the power spectrum coming from a particular term in the data is related to the Fourier transform of its covariance.
-If we wanted to find the errorbar due to just thermal noise, for example, we would write down
-\begin{align}
-\sigma^n_{\alpha\alpha} = \sqrt{2}\q_\alpha^T\N\q_\alpha = P_N\I_{\alpha\alpha},
-\end{align}
-where we assumed $\N$ was a scalar matrix leaving $\q^H\q$ to become the identity matrix with an overall normalization set by the adopted Fourier convention and the $\sigma_n^2$ term along the diagonal of $\N$, which together forms $P_N$, the theoretical noise power spectrum \citep{Cheng2018}.
-This tells us, as expected, that the uncertainty in the power spectrum due to homoscedastic thermal noise is white in the Fourier domain and, due to the Fourier orthogonality condition, is uncorrelated between bandpowers.
-Likewise, it tells us that we can propagate the uncertainty on our foreground subtraction to the residual power spectrum as,
-\begin{align}
-\sigma^{n,f}_{\alpha\alpha} = \sqrt{2}\q_\alpha^T(\N + \Cov[f])\q_\alpha
-\end{align}
-\autoref{fig:pcov_errs} shows this applied to our simulated data with the GP configuration of \autoref{sec:M18}.
-We see that the errorbars neatly rise at low $k$ to account for the variance about the subtracted MAP foreground estimate.
-In the end, we find that we can propagate the uncertainty of the foreground model into the uncertainty of the power spectrum without needing to correct the measured bandpower itself.
-This approach respects the fact that our foreground removal has indeed over subtracted other terms in the data--and has thus suppressed the power spectrum at low $k$--but acknowledges the uncertainty on the foreground fit by propagating its error on the bandpowers.
-Thus, the act of propagating $\Cov[f]$ into the power spectrum is not a bias correction to the amplitude of the bandpowers but is a correction to their uncertainty.
-With this less model-dependent approach, we find that we cannot actually claim a detection of the 21\,cm signal at low $k$ because the bandpowers suffer from signal loss, but can still place upper limits based on the 95\% confidence interval of the inflated errorbars.
-
-If one is purely interested in restoring the bandpower amplitude of the 21\,cm signal, one can estimate the amount of signal loss via large suites of simulated input and recovery trials, as is done in \citetalias{Mertens2020}.
-However, this too can be a dangerously model-dependent operation, as the amount of signal loss is generally dependent on the inherent 21\,cm signal amplitude, which is not known a priori.
-We will revisit signal loss trials later in this work.
-
-
-\subsection{EoR Model Dependence}
-
-
-\begin{figure}
-\centering
-\includegraphics[scale=0.55]{imgs/eor_covariance}
-\caption{}
-\label{fig:eor_cov}
-\end{figure}
-
-Here we aim to understand how these results depend on the underlying statistics of the EoR signal and the relative agreement between the actual EoR covariance and the adopted EoR covariance model.
-To do this, we run another \texttt{21cmFAST} simulation with different parameters, specifically ($\zeta=$, $T_{\rm vir}^{\rm min}=$, $R_{\rm mfp}=$), which produces a 21\,cm temperature field with more large scale power at the redshifts of interest.
-These parameter selections are within the unconstrained space of these semi-numerical parameters given other high redshift observations \citep{Greig2017}.
-\autoref{fig:eor_cov} shows the covariance of the initial and updated EoR model at two different redshifts, showing broadly different statistics between the two models.
-We also plot an exponential kernel covariance function with different length scale parameters, showing that it does a roughly decent job matching the initial model (blue and orange).
-Indeed, this is reaffirmed in \autoref{fig:high_snr}, where we see that the optimized kernel favors a $\ellto\sim0.1$ MHz.
-However, for the second EoR model the exponential kernel does a poorer job capturing the EoR covariance at short and long frequency separations.
-
-
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%% Discussion  %%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\section{Discussion}
-\label{sec:discussion}
-
 
 \subsection{Implications for Previous Upper Limits}
 
-LOFAR upper limit may or may not be okay. With proper normalization
-
-
-
-\subsection{Future Work}
-
-
-
+Here we perform a rough estimate of the implications of un-normalized GPR foreground removal on the band power window functions from the recent LOFAR upper limit of \citetalias{Mertens2020}.
+Because \citetalias{Mertens2020} form power spectra from the GPR-FS residuals without decorrelating the band powers and apply a per-band power normalization (as discussed above), the resultant window functions will be similar to the $\M\propto\I$ QE window functions presented in this work.
+We construct the $\R_{\operatorname{GPR-FS}}$ matrix used in the LOFAR analysis from the five covariance terms of their GPR model and their hyperparamter values from their Table X.
+We model the data covariance from XXX -- XXX MHz with 64 channels, which are then averaged onto the X number of logarithmic $k$ bins in the process of spherical averaging, using \autoref{eq:sph_window} to compute the window functions for each band power.
 
 
 
@@ -1079,6 +769,9 @@ LOFAR upper limit may or may not be okay. With proper normalization
 
 In this work we have investigated Gaussian process regression for foreground subtraction in 21\,cm surveys of the EoR.
 
+One of the key assumptions we made for GPR and QE foreground subtraction in \autoref{sec:gprfs} was the equivalence between the adopted data covariance matrix and the true, underlying covariance matrix.
+One can empirically estimate this directly from the data \citep[e.g.][]{Dillon2014}, but this has also been shown to cause signal loss if not handled properly \citep{Switzer2016, Cheng2018}.
+Future work will study the impact of real-world covariance model imperfections on GPR and QE-based foreground separation.
 
 
 \section*{Acknowledgements}
@@ -1103,18 +796,6 @@ In this work we have investigated Gaussian process regression for foreground sub
 %%%%%%%%%%%%%%%%% APPENDICES %%%%%%%%%%%%%%%%%%%%%
 
 \appendix
-
-\section{Simulating the EoR Sky}
-\label{sec:sim_app}
-
-\begin{figure*}
-\centering
-\label{fig:eor_tile}
-\includegraphics[scale=0.35]{imgs/eor_tiling.png}
-\caption{The process of stacking \texttt{21cmFAST} box output for all-sky simulation using \texttt{cosmotile} \citep{Kittisiwit2018}. First, \texttt{21cmFAST} is evaluated from $9<z<11$ in steps of $dz=0.25$ to create a series of box output of the differential brightness temperature, $\delta T_{\rm b}$ (left). At each simulated frequency, the output box with the closest matching redshift is tiled in 3D real space and a thin spherical annulus is carved out at the appropriate comoving distance and sampled onto an NSIDE=256 HEALpix map (center). This is repeated for all frequency channels and yields a series of HEALpix maps. Sampling these maps along a slit at fixed $\phi$ and for $1.0 < \theta < 1.4$ radians (black rectangle) for all frequencies returns a lightcone (right), which is smoothed in the figure for visual clarity.}
-\end{figure*}
-
-
 
 \section{Computational Complexity}
 Naive scaling of $N^3$, optimized scaling of $N^2$ for low and intermediate $N$.
