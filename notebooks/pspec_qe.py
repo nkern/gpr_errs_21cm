@@ -11,7 +11,7 @@ class QE:
         Quadratic Estimator across freqs.
         
         uE = 0.5 * R Q R
-        H_ab = tr(R Q_a R Q_b)
+        H_ab = tr(uE_a Q_b)
         q = x1 uE x2
         M = H^-1, H^-1/2, etc.
         E_a = M_ab uE_b
@@ -86,8 +86,8 @@ class QE:
 
     def _compute_H(self, uE, Q):
         if isinstance(uE, DC):
-            return DC({k: self._compute_H(R[k], Q) for k in uE})
-        return 0.5 * np.array([[np.trace(uEa @ Qb) for Qb in Q] for uEa in uE])
+            return DC({k: self._compute_H(uE[k], Q) for k in uE})
+        return np.array([[np.trace(uEa @ Qb) for Qb in Q] for uEa in uE])
 
     def compute_H(self, Nbps=None, bp_start=0, prior=None, enforce_real=True):
         """
@@ -117,9 +117,12 @@ class QE:
         # compute Q = dC/dp
         if Nbps is None:
             Nbps = self.Nfreqs
-        # create a Nbps X Nbps Q matrix
-        q = np.array([np.fft.ifft(np.eye(Nbps), axis=-1)[i] for i in range(Nbps)])
-        Q = np.fft.fftshift([_q[None, :].T.conj().dot(_q[None, :]) for _q in q], axes=0) * Nbps**2
+        # get DFT vectors, separable components of Q matrix
+        qft = np.fft.fftshift([np.fft.ifft(np.eye(Nbps), axis=-1)[i] for i in range(Nbps)], axes=0)
+
+        # create Nbps x Nbps Q matrix
+        Q = np.array([_q[None, :].T.conj().dot(_q[None, :]) for _q in qft]) * Nbps**2
+
         # if Nfreqs > Nbps, embed within a larger Q matrix
         if Nbps < self.Nfreqs:
             _Q = np.zeros((Nbps, self.Nfreqs, self.Nfreqs), dtype=np.complex)
@@ -127,6 +130,7 @@ class QE:
             _Q[:, bp_start:bp_end, bp_start:bp_end] = Q
             Q = _Q
         self.Q = Q
+        self.qft = qft
 
         # compute bandpower k bins
         self.dlys = np.fft.fftshift(np.fft.fftfreq(Nbps, np.diff(self.freqs)[0])) * 1e3
