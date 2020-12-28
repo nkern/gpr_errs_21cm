@@ -1,14 +1,12 @@
 import numpy as np
-import hera_cal as hc
-from uvtools import dspec
-import hera_pspec as hp
+from hera_pspec.conversions import Cosmo_Conversions
 from hera_cal.datacontainer import DataContainer as DC
 
 class QE:
     
-    def __init__(self, freqs, x1, x2=None, C=None, scalar=None, cosmo=None):
+    def __init__(self, freqs, x1, x2=None, C=None, scalar=None, cosmo=None, spw=None):
         """
-        Quadratic Estimator across freqs.
+        A simple quadratic estimator
         
         uE = 0.5 * R Q R
         H_ab = tr(uE_a Q_b)
@@ -35,6 +33,10 @@ class QE:
             Power spectrum normalization scalar to multiply into M
         cosmo : hera_pspec Cosmo_Conversions object
             Adopted cosmology. Default is hera_pspec default.
+        spw : tuple or slice object
+            Delineates spw channels for power spectrum estimation, of shape (start, stop) channel
+            This is used for wideband GPR, where filtering is applied across all freqs
+            but pspec estimation is over a subband. Default is the entire band.
         """
         self.x1 = x1
         if x2 is None:
@@ -49,12 +51,17 @@ class QE:
         self.scalar = scalar
         self.container = isinstance(x1, DC)
         if cosmo is None:
-            self.cosmo = hp.conversions.Cosmo_Conversions()
+            self.cosmo = Cosmo_Conversions()
         else:
             self.cosmo = cosmo
         self.avg_f = np.mean(freqs)
         self.avg_z = self.cosmo.f2z(self.avg_f * 1e6)
         self.t2k = self.cosmo.tau_to_kpara(self.avg_z)
+        if spw is None:
+            self.spw = slice(None)
+        else:
+            self.spw = spw
+        self.spw_Nfreqs = len(freqs[self.spw])
         
     def _check_type(self, A):
         if A is not None:
@@ -66,7 +73,9 @@ class QE:
     def set_R(self, R):
         """
         Set weighting matrix for QE.
-        For proper OQE, this should be C^-1
+        For proper OQE, this should be C^-1.
+        For wideband GPR, input R should be square,
+        which is then saved as R[self.spw, :]
         
         Parameters
         ----------
@@ -77,30 +86,26 @@ class QE:
         self.R
         """
         self._check_type(R)
-        self.R = R
+        self.R = R[self.spw, :]
    
     def _compute_uE(self, R, Q):
         if isinstance(R, DC):
             return DC({k: self._compute_uE(R[k], Q) for k in R})
         return 0.5 * np.array([R.T.conj() @ Qa @ R for Qa in Q])
 
-    def _compute_H(self, uE, Q):
+    def _compute_H(self, uE, Q_zpad):
         if isinstance(uE, DC):
-            return DC({k: self._compute_H(uE[k], Q) for k in uE})
-        return np.array([[np.trace(uEa @ Qb) for Qb in Q] for uEa in uE])
+            return DC({k: self._compute_H(uE[k], Q_zpad) for k in uE})
+        return np.array([[np.trace(uEa @ Qb) for Qb in Q_zpad] for uEa in uE])
 
-    def compute_H(self, Nbps=None, bp_start=0, prior=None, enforce_real=True):
+    def compute_H(self, prior=None, enforce_real=True):
         """
-        Compute response matrix given self.R.
-        For R = C^-1 this is the Fisher matrix
+        Compute H_ab = tr[uE_a Q_b]
+        Also computes Q and uE.
+        For R = C^-1, H = F is the Fisher matrix
         
         Parameters
         ----------
-        Nbps : int
-            Number of bandpowers. Default is Nfreqs.
-        bp_start : int
-            Index of Q to start DFT matrix.
-            Default is 0.
         prior : ndarray or DataContainer (Ndelays,)
             Bandpower prior. Re-defines Q^_a = prior_a * Q_a
             And defines p^_a = p_a / prior_a
@@ -112,25 +117,26 @@ class QE:
         -------
         self.uE, self.H
         """
+        # compute Q = dC/dp
         if not hasattr(self, 'R'):
             raise ValueError("No R matrix attached to object")
-        # compute Q = dC/dp
-        if Nbps is None:
-            Nbps = self.Nfreqs
+
+        # number of bandpowers is R.shape[0]
+        Nbps = self.R.shape[0]
+
         # get DFT vectors, separable components of Q matrix
-        qft = np.fft.fftshift([np.fft.ifft(np.eye(Nbps), axis=-1)[i] for i in range(Nbps)], axes=0)
+        self.qft = np.fft.fftshift([np.fft.ifft(np.eye(Nbps), axis=-1)[i] for i in range(Nbps)], axes=0)
 
         # create Nbps x Nbps Q matrix
-        Q = np.array([_q[None, :].T.conj().dot(_q[None, :]) for _q in qft]) * Nbps**2
+        self.Q = np.array([_q[None, :].T.conj().dot(_q[None, :]) for _q in self.qft]) * Nbps**2
 
-        # if Nfreqs > Nbps, embed within a larger Q matrix
-        if Nbps < self.Nfreqs:
-            _Q = np.zeros((Nbps, self.Nfreqs, self.Nfreqs), dtype=np.complex)
-            bp_end = bp_start + Nbps
-            _Q[:, bp_start:bp_end, bp_start:bp_end] = Q
-            Q = _Q
-        self.Q = Q
-        self.qft = qft
+        # if R is not square, create a zero-padded Q matrix for computing H_ab = tr[R.T Q_a R Q_zpad_b]
+        # if R is square, self.Q_zpad = self.Q
+        if self.Nfreqs == self.spw_Nfreqs:
+            self.Q_zpad = self.Q
+        else:
+            self.Q_zpad = np.zeros((Nbps, self.Nfreqs, self.Nfreqs), dtype=np.complex)
+            self.Q_zpad[:, self.spw, self.spw] = self.Q
 
         # compute bandpower k bins
         self.dlys = np.fft.fftshift(np.fft.fftfreq(Nbps, np.diff(self.freqs)[0])) * 1e3
@@ -142,10 +148,11 @@ class QE:
             self.prior = prior
             for i, p in enumerate(prior):
                 self.Q[i] *= p
+                self.Q_zpad[i] *= p
         
         # compute un-normed E and then H
         self.uE = self._compute_uE(self.R, self.Q)
-        self.H = self._compute_H(self.uE, self.Q)
+        self.H = self._compute_H(self.uE, self.Q_zpad)
         if enforce_real:
             self.H = self.H.real
 
@@ -187,11 +194,6 @@ class QE:
         else:
             raise ValueError("{} not recognized".format(norm))
 
-    def _compute_p(self, M, q):
-        if isinstance(M, DC):
-            return DC({k: self._compute_p(M[k], q[k]) for k in M})
-        return M @ q
-    
     def _compute_W(self, M, H):
         if isinstance(M, DC):
             return DC({k: self._compute_W(M[k], H[k]) for k in M})
@@ -207,70 +209,99 @@ class QE:
             return DC({k: self._compute_b(C[k], E[k]) for k in C})
         return np.array([np.trace(C @ Ea) for Ea in E])
     
-    def _compute_V(self, C, E):
-        if isinstance(C, DC):
-            return DC({k: self._compute_V(C[k], E[k]) for k in C})
-        return 2 * np.array([[np.trace(C @ Ea @ C @ Eb) for Eb in E] for Ea in E])
-
-    def compute_p(self, norm='I', C_data=None, C_bias=None, sph_avg=True):
+    def compute_MW(self, norm='I'):
         """
-        Compute p: normalized bandpowers
-        Must first compute_q
-        Also computes window function W, normalized
-        E matrix nE, bandpower covariance V, and
-        bandpower bias term b.
-        
+        Compute normalization and window functions
+
         Parameters
         ----------
         norm : str, ['I', 'H^-1', 'H^-1/2']
             Bandpower normalization matrix type
-        C_data : ndarray or DataContainer (Nfreqs, Nfreqs), optional
-            Data covariance for errorbar estimation.
-            Default is self.C
-        C_bias : ndarray or DataContainer (Nfreqs, Nfreqs), optional
-            Data covariance for bias term.
-            Default is no bias term.
-        sph_avg : bool,
-            If True, perform spherical average onto k_mag axis
-            
+
         Results
         -------
-        self.M, self.W, self.E, self.p, self.V, self.b
+        self.M, self.W, self.uE
         """
-        if not hasattr(self, 'q'):
-            raise ValueError('Must first compute_q')
-        self._check_type(C_data)
-        self._check_type(C_bias)
         self.norm = norm
         self.kp_mag = np.abs(self.kp)
         # get normalization matrix
+        assert hasattr(self, 'H'), "Must self.compute_H first"
         self.M = self._compute_M(norm, self.H)
         # compute window functions
         self.W = self._compute_W(self.M, self.H) / self.scalar
-        # compute normalized bandpowers
-        self.p = self._compute_p(self.M, self.q)
         # compute normalized E matrix
         self.E = self._compute_E(self.M, self.uE)
-        # compute bandpower covariance
-        if C_data is None:
-            C_data = self.C
-        if C_data is not None:
-            self.V = self._compute_V(C_data, self.E)
+
+    def _compute_p(self, M, q):
+        if isinstance(M, DC):
+            return DC({k: self._compute_p(M[k], q[k]) for k in M})
+        return M @ q
+
+    def compute_p(self, C_bias=None):
+        """
+        Compute normalized bandpowers and bias term.
+        Must first compute_q(), and compute_MW()
+        
+        Parameters
+        ----------
+        C_bias : ndarray or DataContainer (Nfreqs, Nfreqs), optional
+            Data covariance for bias term.
+            Default is no bias term.
+            
+        Results
+        -------
+        self.p, self.b
+        """
+        self._check_type(C_bias)
+        self.kp_mag = np.abs(self.kp)
+        # compute normalized bandpowers
+        assert hasattr(self, 'q'), "Must first compute_q()"
+        assert hasattr(self, "M"), "Must first compute_MW()"
+        self.p = self._compute_p(self.M, self.q)
         # compute bias term
         if C_bias is not None:
             self.b = self._compute_b(C_bias, self.E)[:, None]
         else:
             self.b = np.zeros_like(self.p)
-        if sph_avg:
-            self.spherical_average()
 
-    def spherical_average(self, kp_mag=None):
+    def _compute_V(self, C, E):
+        if isinstance(C, DC):
+            return DC({k: self._compute_V(C[k], E[k]) for k in C})
+        # compute C @ Ea once
+        CE = [C @ Ea for Ea in E]
+        # compute all cross terms
+        return 2 * np.array([[np.trace(CEa @ CEb) for CEb in CE] for CEa in CE])
+
+    def compute_V(self, C_data=None):
+        """
+        Compute bandpower covariance.
+        Must run compute_MW() first.
+
+        Parameters
+        ----------
+        C_data : ndarray or DataContainer (Nfreqs, Nfreqs), optional
+            Data covariance for errorbar estimation.
+            Default is self.C
+
+        Results
+        -------
+        self.V
+        """
+        # compute bandpower covariance
+        self._check_type(C_data)
+        assert hasattr(self, 'E'), "Must first run compute_MW()"
+        if C_data is None:
+            self.V = np.eye(self.spw_Nfreqs, dtype=np.complex)
+        else:
+            self.V = self._compute_V(C_data, self.E)
+
+    def spherical_average(self, kp_sph=None):
         """
         Spherical average onto |k| axis
 
         Parameters
         ----------
-        kp_mag : ndarray of k values. Default is |self.kp|
+        kp_sph : ndarray of k values. Default is |self.kp|
 
         p_cyl = A p_sph
         p_sph = [A.T C_cyl^-1 A]^-1 A.T C_cyl^-1 p_cyl
@@ -281,31 +312,49 @@ class QE:
         if not hasattr(self, 'V'):
             self.V = np.eye(self.p.shape[0])
 
-        if kp_mag is None:
-            self.kp_mag = np.unique(np.abs(self.kp))
+        if kp_sph is None:
+            self.kp_sph = np.unique(np.abs(self.kp))
         else:
-            self.kp_mag = kp_mag
+            self.kp_sph = kp_sph
 
         # construct A matrix
-        A = np.zeros((len(self.kp), len(self.kp_mag)))
+        A = np.zeros((len(self.kp), len(self.kp_sph)))
         for i, k in enumerate(self.kp):
-            A[i, np.argmin(np.abs(self.kp_mag - np.abs(k)))] = 1.0
+            A[i, np.argmin(np.abs(self.kp_sph - np.abs(k)))] = 1.0
 
         # get p_sph
         Vinv = np.linalg.inv(self.V)
         AtVinv = A.T @ Vinv
         AtVinvAinv = np.linalg.inv(AtVinv @ A)
-        self.p = AtVinvAinv @ AtVinv @ self.p
-        self.b = AtVinvAinv @ AtVinv @ self.b
+        self.p_sph = AtVinvAinv @ AtVinv @ self.p
+        self.b_sph = AtVinvAinv @ AtVinv @ self.b
         
         # get V_sph
-        self.V = AtVinvAinv
+        self.V_sph = AtVinvAinv
 
         # get W_sph
-        self.W = AtVinvAinv @ AtVinv @ self.W @ A
+        self.W_sph = AtVinvAinv @ AtVinv @ self.W @ A
 
-    def _compute_dsq(self, p, b, V):
-        kfac = self.kp_mag[:, None]**3 / 2 / np.pi**2
+    def compute_MWVp(self, norm='I', C_data=None, C_bias=None, sph_avg=True, kp_sph=None):
+        """
+        Shallow wrap for compute_MW, p, V and spherical average
+
+        Parameters
+        ----------
+        norm : see compute_MW()
+        C_data : see compute_V()
+        C_bias : see compute_p()
+        sph_avg : If True, run self.spherical_average()
+        kp_sph : see spherical_average()
+        """
+        self.compute_MW(norm=norm)
+        self.compute_p(C_bias=C_bias)
+        self.compute_V(C_data=C_data)
+        if sph_avg:
+            self.spherical_average(kp_sph=kp_sph)
+
+    def _compute_dsq(self, kp, p, b, V):
+        kfac = kp[:, None]**3 / 2 / np.pi**2
         dsq_p = p * kfac
         dsq_b = b * kfac
         if V is not None:
@@ -317,7 +366,7 @@ class QE:
 
     def compute_dsq(self):
         """
-        Compute DelSquare
+        Compute Delta-Square from self.kp_sph
 
         Result
         -----
@@ -325,5 +374,6 @@ class QE:
         self.dsq_b
         self.dsq_V
         """
-        self.dsq, self.dsq_b, self.dsq_V = self._compute_dsq(self.p, self.b, self.V)
+        assert hasattr(self, 'p_sph')
+        self.dsq, self.dsq_b, self.dsq_V = self._compute_dsq(self.kp_sph, self.p_sph, self.b_sph, self.V_sph)
 
